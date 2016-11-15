@@ -1,0 +1,45 @@
+// Sample Lambda function to share EBS snapshot with other AWS Account
+
+var AWS = require('aws-sdk');
+var ec2 = new AWS.EC2();
+
+// define variables
+var SharedAccount = '016035525021(공유할 계정의 ID)';
+console.log ('Loading function');
+
+//main function
+exports.handler = (event, context, callback) => {
+
+    // Get the EBS snapshot ID from the CloudWatch event details
+    var snapshotArn = event.detail.snapshot_id.split('/');
+    const snapshotId = snapshotArn[1];
+    console.log ("snapshotId:", snapshotId);
+
+    // Load EC2 class to initiate the snapshot.
+    var ec2 = new AWS.EC2();
+    
+    // Prepare variables for ec2.modifySnapshotAttribute call
+    const ModifySnapshotParams = {
+        Attribute: "createVolumePermission",
+        OperationType: "add",
+        SnapshotId: snapshotId,
+        UserIds: [
+            SharedAccount
+        ]
+    };
+
+    // Execute the copy snapshot and log any errors
+    ec2.modifySnapshotAttribute(ModifySnapshotParams, (err, data) => {
+        if (err) {
+            const errorMessage = `Error sharing snapshot ${snapshotId} to Accout ${SharedAccount}.`;
+            console.log(errorMessage);
+            console.log(err);
+            callback(errorMessage);
+        } else {
+            const successMessage = `Successfully shared snapshot ${snapshotId} to Account ${SharedAccount}.`;
+            console.log(successMessage);
+            console.log(data);
+            callback(null, successMessage);
+        }
+    });
+};
